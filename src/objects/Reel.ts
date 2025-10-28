@@ -13,13 +13,23 @@ export default class Reel extends Phaser.GameObjects.Container {
   }
 
   private createInitialSymbols() {
-    const symbolSize = 120
-
     for (let i = 0; i < 3; i++) {
       const key = Phaser.Utils.Array.GetRandom(this.symbolKeys)
-      const symbol = this.scene.add.image(0, i * symbolSize, key).setOrigin(0.5)
+      const symbol = this.scene.add.image(0, i * 153.6, key).setOrigin(-0.1)
       this.add(symbol)
       this.symbols.push(symbol)
+
+      // const symbolColors = [0x0000f2, 0xffffff, 0x00ff00, 0xff0000, 0x0000ff]
+      // const color = Phaser.Utils.Array.GetRandom(symbolColors)
+      // const symbol2 = this.scene.add.graphics()
+      // symbol2.fillStyle(color, 0.3)
+      // symbol2.fillRect(0, i * 153.6, 238.93, 153.6)
+      // // Optional: add a small border to see the edges clearly
+      // symbol2.lineStyle(4, 0x000000, 1)
+      // symbol2.strokeRect(0, i * 153.6, 238.93, 153.6)
+      //
+      // this.add(symbol2)
+      // this.symbols.push(symbol2)
     }
   }
 

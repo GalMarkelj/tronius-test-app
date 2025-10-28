@@ -8,6 +8,9 @@ export default class MainScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text
   private score: number = 0
 
+  // settings
+  private numOfColumns = 3
+
   constructor() {
     super('MainScene')
   }
@@ -15,11 +18,11 @@ export default class MainScene extends Phaser.Scene {
   preload() {
     // Load your assets
     this.load.image('bg', 'assets/bg.jpg')
-    this.load.image('pumpkin', 'assets/pumpkin-2.png')
-    this.load.image('ghost', 'assets/pumpkin-2.png')
-    this.load.image('bat', 'assets/pumpkin-2.png')
-    this.load.image('candy', 'assets/pumpkin-2.png')
-    this.load.image('skull', 'assets/pumpkin-2.png')
+    this.load.image('pumpkin', 'assets/pumpkin.png')
+    this.load.image('ghost', 'assets/ghost.png')
+    this.load.image('bat', 'assets/bat.png')
+    this.load.image('candy', 'assets/candy.png')
+    this.load.image('skull', 'assets/skull.png')
     this.load.image('spinBtn', 'assets/pumpkin-2.png')
     this.load.image('stopBtn', 'assets/pumpkin-2.png')
   }
@@ -32,6 +35,7 @@ export default class MainScene extends Phaser.Scene {
 
     // Symbols available
     const symbolKeys = ['pumpkin', 'ghost', 'bat', 'candy', 'skull']
+    // const symbolColors = [0x0000f2, 0xffffff, 0x00ff00, 0xff0000, 0x0000ff]
 
     const rww = width * 0.7 // reel wrapper width
     const rwh = height * 0.6 // reel wrapper height
@@ -40,7 +44,6 @@ export default class MainScene extends Phaser.Scene {
     const rwy = (height - rwh) / 2 // reel wrapper Y
 
     const wrapperBg = this.add.graphics()
-    wrapperBg.fillStyle(0x000000, 0.6)
     wrapperBg.fillRoundedRect(0, 0, rww, rwh, 20)
     wrapperBg.lineStyle(4, 0xffa500)
     wrapperBg.strokeRoundedRect(0, 0, rww, rwh, 20)
@@ -49,23 +52,55 @@ export default class MainScene extends Phaser.Scene {
     const wrapper = this.add.container(rwx, rwy)
     wrapper.add(wrapperBg)
 
+    /* -- Start of separation lines -- */
+    const lineColor = 0xffa500
+    const lineWidth = 3
+    const columnWidth = rww / 3
+
+    const separatorLines = this.add.graphics()
+    separatorLines.lineStyle(lineWidth, lineColor, 1)
+
+    // Draw lines at 1/3 and 2/3 positions
+    separatorLines.beginPath()
+    separatorLines.moveTo(columnWidth, 0)
+    separatorLines.lineTo(columnWidth, rwh)
+    separatorLines.moveTo(2 * columnWidth, 0)
+    separatorLines.lineTo(2 * columnWidth, rwh)
+    separatorLines.strokePath()
+    /* -- End of separation lines -- */
+
+    // Add them to the same wrapper
+    wrapper.add(separatorLines)
+
     // Create 3 reels
-    const startX = width / 2 - 250
-    for (let i = 0; i < 3; i++) {
-      const reel = new Reel(this, startX + i * 150, height / 2 - 150, symbolKeys)
-      this.reels.push(reel)
-
-      const columnWidth = rww / 3
+    for (let i = 0; i < this.numOfColumns; i++) {
       const columnBg = this.add.graphics()
-      columnBg.fillStyle(0x000000, 1)
-      // reelBg.fillRoundedRect(startX + i * reelWidth, 0, reelWidth, ch)
-      columnBg.fillRoundedRect(i * columnWidth, 0, columnWidth, rwh)
+      const columnBdRadius = (() => {
+        const corners = {
+          tl: 0,
+          tr: 0,
+          bl: 0,
+          br: 0,
+        }
+        if (i === 0) {
+          corners.tl = 20
+          corners.bl = 20
+        }
+        if (i === this.numOfColumns - 1) {
+          corners.tr = 20
+          corners.br = 20
+        }
+        return corners
+      })()
+      columnBg.fillStyle(0xffffff, 0.8)
+      columnBg.fillRoundedRect(i * columnWidth, 0, columnWidth, rwh, columnBdRadius)
       columnBg.lineStyle(4, 0xffa500)
-      // bg.strokeRoundedRect(0, i * symbolSize, cw, ch, 20)
 
-      // Then add it as the first element in your container
       const columnWrap = this.add.container(rwx, rwy)
       columnWrap.add(columnBg)
+
+      const reel = new Reel(this, rwx + i * columnWidth, rwy, symbolKeys)
+      this.reels.push(reel)
     }
 
     // Score display

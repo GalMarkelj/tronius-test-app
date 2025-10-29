@@ -16,19 +16,43 @@ export default class MainScene extends Phaser.Scene {
   }
 
   preload() {
-    // Load your assets
-    this.load.image('bg', 'assets/bg.jpg')
-    this.load.image('pumpkin', 'assets/pumpkin.png')
-    this.load.image('ghost', 'assets/ghost.png')
-    this.load.image('bat', 'assets/bat.png')
-    this.load.image('candy', 'assets/candy.png')
-    this.load.image('skull', 'assets/skull.png')
-    this.load.image('spinBtn', 'assets/pumpkin-2.png')
-    this.load.image('stopBtn', 'assets/pumpkin-2.png')
+    // Load images
+    this.load.setPath('assets/images')
+    this.load.image('bg', 'bg.jpg')
+    this.load.image('pumpkin', 'pumpkin.png')
+    this.load.image('ghost', 'ghost.png')
+    this.load.image('bat', 'bat.png')
+    this.load.image('candy', 'candy.png')
+    this.load.image('skull', 'skull.png')
+    this.load.image('spinBtn', 'spin-button.png')
+    this.load.image('stopBtn', 'stop-button.png')
+
+    // Load music
+    this.load.setPath('assets/music')
+    this.load.audio('bgMusic', 'bg-music.wav')
+
+    // Load witch laughs
+    this.load.setPath('assets/sound-effects/witch-laughs')
+    this.load.audio('witchLaugh1', 'witch-laugh-1.wav')
+    this.load.audio('witchLaugh2', 'witch-laugh-2.wav')
+    this.load.audio('witchLaugh3', 'witch-laugh-3.wav')
+    this.load.audio('witchLaugh4', 'witch-laugh-4.wav')
+    this.load.audio('witchLaugh5', 'witch-laugh-5.wav')
+    this.load.audio('witchLaugh6', 'witch-laugh-6.wav')
+    this.load.audio('witchLaugh7', 'witch-laugh-7.wav')
+    this.load.audio('witchLaugh8', 'witch-laugh-8.wav')
+    this.load.audio('witchLaugh9', 'witch-laugh-9.wav')
   }
 
   create() {
     const { width, height } = this.scale
+
+    // set background music
+    const music = this.sound.add('bgMusic', {
+      loop: true,
+      volume: 0.1, // between 0 and 1
+    })
+    music.play()
 
     // Background
     this.add.image(width / 2, height / 2, 'bg').setDisplaySize(width, height)
@@ -42,6 +66,12 @@ export default class MainScene extends Phaser.Scene {
 
     const rwx = (width - rww) / 2 // reel wrapper X
     const rwy = (height - rwh) / 2 // reel wrapper Y
+
+    const maskShape = this.add.graphics()
+    maskShape.fillRect(rwx, rwy, rww, rwh) // match the wrapper size and position
+
+    // Create the geometry mask
+    const reelMask = maskShape.createGeometryMask()
 
     const wrapperBg = this.add.graphics()
     wrapperBg.fillRoundedRect(0, 0, rww, rwh, 20)
@@ -99,7 +129,8 @@ export default class MainScene extends Phaser.Scene {
       const columnWrap = this.add.container(rwx, rwy)
       columnWrap.add(columnBg)
 
-      const reel = new Reel(this, rwx + i * columnWidth, rwy, symbolKeys)
+      const reel = new Reel(this, rwx + i * columnWidth, rwy, symbolKeys, this.onSpinEnd)
+      reel.setMask(reelMask)
       this.reels.push(reel)
     }
 
@@ -138,12 +169,26 @@ export default class MainScene extends Phaser.Scene {
   }
 
   private stopSpin() {
-    this.reels.forEach((reel) => reel.stop())
-    this.increaseScore()
+    this.reels.forEach((reel, index) => {
+      this.time.delayedCall(index * 1000, () => {
+        reel.stop()
+      })
+    })
+    const stopDuration = 2300 // time per reel to stop (decelerate + snap)
+    const reelDelay = 1000 // delay between reel stops
+    const totalDelay = (this.reels.length - 1) * reelDelay + stopDuration
+    // Optional: update score after all reels have stopped
+    this.time.delayedCall(totalDelay, () => this.onSpinStop())
   }
 
   private increaseScore() {
     this.score += Phaser.Math.Between(10, 100)
     this.scoreText.setText(`${this.score}`)
+  }
+
+  private onSpinStop() {
+    // Play sound
+    this.sound.play(`witchLaugh${Phaser.Math.Between(1, 9)}`, { volume: 0.3 })
+    this.increaseScore()
   }
 }

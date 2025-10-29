@@ -4,6 +4,9 @@ export default class Reel extends Phaser.GameObjects.Container {
   private symbols: Phaser.GameObjects.Image[] = []
   private symbolKeys: string[]
   private spinning: boolean = false
+  private symbolHeight: number = 153.6
+  private spinSpeed: number = 200
+  private decelerating: boolean = false
 
   constructor(scene: Phaser.Scene, x: number, y: number, symbolKeys: string[]) {
     super(scene, x, y)
@@ -13,23 +16,12 @@ export default class Reel extends Phaser.GameObjects.Container {
   }
 
   private createInitialSymbols() {
-    for (let i = 0; i < 3; i++) {
+    // Create 5 symbols: 3 visible + 2 extra for smooth wrapping
+    for (let i = 0; i < 5; i++) {
       const key = Phaser.Utils.Array.GetRandom(this.symbolKeys)
-      const symbol = this.scene.add.image(0, i * 153.6, key).setOrigin(-0.1)
+      const symbol = this.scene.add.image(0, i * this.symbolHeight, key).setOrigin(-0.1)
       this.add(symbol)
       this.symbols.push(symbol)
-
-      // const symbolColors = [0x0000f2, 0xffffff, 0x00ff00, 0xff0000, 0x0000ff]
-      // const color = Phaser.Utils.Array.GetRandom(symbolColors)
-      // const symbol2 = this.scene.add.graphics()
-      // symbol2.fillStyle(color, 0.3)
-      // symbol2.fillRect(0, i * 153.6, 238.93, 153.6)
-      // // Optional: add a small border to see the edges clearly
-      // symbol2.lineStyle(4, 0x000000, 1)
-      // symbol2.strokeRect(0, i * 153.6, 238.93, 153.6)
-      //
-      // this.add(symbol2)
-      // this.symbols.push(symbol2)
     }
   }
 
@@ -37,30 +29,66 @@ export default class Reel extends Phaser.GameObjects.Container {
     if (this.spinning) return
     this.spinning = true
 
-    // tween to simulate rotation
-    this.scene.tweens.add({
-      targets: this,
-      y: this.y + 300,
-      duration: 200,
-      repeat: -1,
-      ease: 'Linear',
-    })
+    // Use scene update to move symbols smoothly
+    this.scene.events.on('update', this.updateReel, this)
   }
 
   public stop() {
-    if (!this.spinning) return
-    this.spinning = false
+    if (!this.spinning || this.decelerating) return
 
-    // stop all tweens for this reel
-    this.scene.tweens.killTweensOf(this)
+    this.decelerating = true
 
-    // randomize new symbols
-    this.symbols.forEach((symbol, i) => {
-      const newKey = Phaser.Utils.Array.GetRandom(this.symbolKeys)
-      symbol.setTexture(newKey)
+    // Step 1: Smooth deceleration
+    this.scene.tweens.add({
+      targets: this,
+      dummy: 0, // fake property just for timing
+      duration: 2000,
+      onUpdate: (tween) => {
+        this.spinSpeed = 200 * (1 - tween.progress)
+      },
+      onComplete: () => {
+        this.spinning = false
+        this.decelerating = false
+        this.spinSpeed = 0
+
+        // Step 2: SNAP symbols smoothly
+        this.symbols.forEach((symbol) => {
+          const targetY = Math.round(symbol.y / this.symbolHeight) * this.symbolHeight
+          this.scene.tweens.add({
+            targets: symbol,
+            y: targetY,
+            duration: 300,
+            ease: 'Cubic.easeOut',
+          })
+        })
+      },
     })
+  }
 
-    // reset position (so it doesn't drift)
-    this.y = Math.round(this.y / 100) * 100
+  private updateReel() {
+    for (const symbol of this.symbols) {
+      symbol.y += this.spinSpeed
+
+      // Wrap symbol naturally
+      if (symbol.y >= 3 * this.symbolHeight) {
+        symbol.y -= this.symbols.length * this.symbolHeight
+
+        // Only assign new texture here — smooth, no sudden flash
+        const newKey = Phaser.Utils.Array.GetRandom(this.symbolKeys)
+        symbol.setTexture(newKey)
+      }
+    }
   }
 }
+
+// const symbolColors = [0x0000f2, 0xffffff, 0x00ff00, 0xff0000, 0x0000ff]
+// const color = Phaser.Utils.Array.GetRandom(symbolColors)
+// const symbol2 = this.scene.add.graphics()
+// symbol2.fillStyle(color, 0.3)
+// symbol2.fillRect(0, i * 153.6, 238.93, 153.6)
+// // Optional: add a small border to see the edges clearly
+// symbol2.lineStyle(4, 0x000000, 1)
+// symbol2.strokeRect(0, i * 153.6, 238.93, 153.6)
+//
+// this.add(symbol2)
+// this.symbols.push(symbol2)

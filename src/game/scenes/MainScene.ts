@@ -7,6 +7,7 @@ export default class MainScene extends Phaser.Scene {
   private stopButton!: Phaser.GameObjects.Image
   private scoreText!: Phaser.GameObjects.Text
   private score: number = 0
+  private spinSound?: Phaser.Sound.BaseSound
 
   // settings
   private numOfColumns = 3
@@ -42,6 +43,11 @@ export default class MainScene extends Phaser.Scene {
     this.load.audio('witchLaugh7', 'witch-laugh-7.wav')
     this.load.audio('witchLaugh8', 'witch-laugh-8.wav')
     this.load.audio('witchLaugh9', 'witch-laugh-9.wav')
+
+    // Load other sound effects
+    this.load.setPath('assets/sound-effects')
+    this.load.audio('spinning', 'spinning.wav')
+    this.load.audio('buttonClick', 'button-click.wav')
   }
 
   create() {
@@ -129,7 +135,7 @@ export default class MainScene extends Phaser.Scene {
       const columnWrap = this.add.container(rwx, rwy)
       columnWrap.add(columnBg)
 
-      const reel = new Reel(this, rwx + i * columnWidth, rwy, symbolKeys, this.onSpinEnd)
+      const reel = new Reel(this, rwx + i * columnWidth, rwy, symbolKeys)
       reel.setMask(reelMask)
       this.reels.push(reel)
     }
@@ -157,11 +163,15 @@ export default class MainScene extends Phaser.Scene {
       .setInteractive()
       .setScale(0.5)
 
-    this.spinButton.on('pointerdown', () => this.startSpin())
-    this.stopButton.on('pointerdown', () => this.stopSpin())
+    this.spinButton.on('pointerdown', () => this.onButtonClick(() => this.startSpin()))
+    this.stopButton.on('pointerdown', () => this.onButtonClick(() => this.stopSpin()))
   }
 
   private startSpin() {
+    const spinSound = this.sound.add('spinning', { loop: true, volume: 0.3, rate: 2 })
+    spinSound.play()
+    this.spinSound = spinSound
+
     this.reels.forEach((reel) => reel.spin())
 
     // auto-stop after 2.5 seconds
@@ -169,15 +179,30 @@ export default class MainScene extends Phaser.Scene {
   }
 
   private stopSpin() {
-    this.reels.forEach((reel, index) => {
-      this.time.delayedCall(index * 1000, () => {
-        reel.stop()
-      })
-    })
     const stopDuration = 2300 // time per reel to stop (decelerate + snap)
     const reelDelay = 1000 // delay between reel stops
     const totalDelay = (this.reels.length - 1) * reelDelay + stopDuration
-    // Optional: update score after all reels have stopped
+
+    this.reels.forEach((reel, index) => {
+      this.time.delayedCall(index * 1000, () => {
+        reel.stop()
+
+        // When the LAST reel begins stopping, start fading out the sound
+        if (index === this.reels.length - 1 && this.spinSound) {
+          this.tweens.add({
+            targets: this.spinSound,
+            volume: 0,
+            rate: 0.8,
+            duration: stopDuration,
+            ease: 'Cubic.easeOut',
+            onComplete: () => {
+              this.sound.stopByKey('spinning')
+            },
+          })
+        }
+      })
+    })
+
     this.time.delayedCall(totalDelay, () => this.onSpinStop())
   }
 
@@ -189,6 +214,12 @@ export default class MainScene extends Phaser.Scene {
   private onSpinStop() {
     // Play sound
     this.sound.play(`witchLaugh${Phaser.Math.Between(1, 9)}`, { volume: 0.3 })
+    this.sound.stopByKey('spinning')
     this.increaseScore()
+  }
+
+  private onButtonClick(callback: () => void) {
+    this.sound.play('buttonClick', { volume: 0.5 })
+    callback()
   }
 }

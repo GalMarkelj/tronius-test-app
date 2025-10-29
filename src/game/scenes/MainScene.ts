@@ -27,6 +27,9 @@ export default class MainScene extends Phaser.Scene {
     this.load.image('skull', 'skull.png')
     this.load.image('spinBtn', 'spin-button.png')
     this.load.image('stopBtn', 'stop-button.png')
+    this.load.image('witch', 'witch.png')
+    this.load.image('gold', 'gold.png')
+    this.load.image('coin', 'coin.png')
 
     // Load music
     this.load.setPath('assets/music')
@@ -48,6 +51,7 @@ export default class MainScene extends Phaser.Scene {
     this.load.setPath('assets/sound-effects')
     this.load.audio('spinning', 'spinning.wav')
     this.load.audio('buttonClick', 'button-click.wav')
+    this.load.audio('coinsFalling', 'coins-falling.wav')
   }
 
   create() {
@@ -143,14 +147,14 @@ export default class MainScene extends Phaser.Scene {
     // Score display
     // score coordinates
     const sc = {
-      imageX: width / 2 - rww / 2 + 20, // (game width / 2) - (container width / 2) + container border radius
-      imageY: height / 2 - rwh / 2, // (game width / 2) - (container width / 2) - gap
+      imageX: width / 2 - rww / 2 + 40, // (game width / 2) - (container width / 2) + container border radius
+      imageY: rwh / 2 - 100, // (game width / 2) - (container width / 2) - gap
     }
-    this.add.image(sc.imageX, sc.imageY - 20, 'pumpkin').setScale(0.2)
-    this.scoreText = this.add.text(sc.imageX + 20, sc.imageY - 35, `${this.score}`, {
-      fontSize: '28px',
-      color: '#ffb84d',
-      fontFamily: 'Arial',
+    this.add.image(sc.imageX, sc.imageY - 20, 'gold').setScale(0.2)
+    this.scoreText = this.add.text(sc.imageX + 50, sc.imageY - 35, `${this.score}`, {
+      fontSize: '50px',
+      color: '#ffd700',
+      fontFamily: 'Henny Penny',
     })
 
     // Buttons
@@ -158,6 +162,7 @@ export default class MainScene extends Phaser.Scene {
       .image(width / 2 - 80, height - 80, 'spinBtn')
       .setInteractive()
       .setScale(0.5)
+
     this.stopButton = this.add
       .image(width / 2 + 80, height - 80, 'stopBtn')
       .setInteractive()
@@ -175,7 +180,7 @@ export default class MainScene extends Phaser.Scene {
     this.reels.forEach((reel) => reel.spin())
 
     // auto-stop after 2.5 seconds
-    this.time.delayedCall(2500, () => this.stopSpin())
+    // this.time.delayedCall(2500, () => this.stopSpin())
   }
 
   private stopSpin() {
@@ -206,20 +211,115 @@ export default class MainScene extends Phaser.Scene {
     this.time.delayedCall(totalDelay, () => this.onSpinStop())
   }
 
-  private increaseScore() {
-    this.score += Phaser.Math.Between(10, 100)
-    this.scoreText.setText(`${this.score}`)
+  private increaseScore(duration: number) {
+    const oldScore = this.score
+    const added = Phaser.Math.Between(50, 200)
+    const newScore = oldScore + added
+
+    // Tween the value smoothly
+    const scoreObj = { value: oldScore }
+
+    this.tweens.add({
+      targets: scoreObj,
+      value: newScore,
+      duration,
+      ease: 'Cubic.easeOut',
+      onUpdate: () => {
+        // Update the text with the animated number (integer)
+        this.scoreText.setText(Math.floor(scoreObj.value).toString())
+      },
+      onComplete: () => {
+        this.score = newScore
+      },
+    })
   }
 
   private onSpinStop() {
-    // Play sound
+    // image width = 350 height = 470
+    const witch = this.add
+      .image(this.scale.width / 2, this.scale.height / 2, 'witch')
+      .setScale(0.5)
+      .setAlpha(0)
+
+    this.tweens.add({
+      targets: witch,
+      alpha: 1,
+      scale: 1.5,
+      duration: 300,
+      ease: 'Back.easeOut',
+      yoyo: false,
+      onComplete: () => {
+        // After 1 second, fade out and destroy
+        this.tweens.add({
+          targets: witch,
+          alpha: 0,
+          duration: 700,
+          delay: 1000,
+          onComplete: () => {
+            witch.destroy()
+          },
+        })
+      },
+    })
     this.sound.play(`witchLaugh${Phaser.Math.Between(1, 9)}`, { volume: 0.3 })
     this.sound.stopByKey('spinning')
-    this.increaseScore()
+
+    const duration = Phaser.Math.Between(1000, 2000)
+    this.increaseScore(duration)
+    this.spawnCoins(30, duration)
   }
 
   private onButtonClick(callback: () => void) {
     this.sound.play('buttonClick', { volume: 0.5 })
     callback()
+  }
+
+  private spawnCoins(count: number = 15, fallDuration: number) {
+    const coinsFalling = this.sound.add('coinsFalling', { volume: 0.5 })
+    coinsFalling.play()
+
+    const longestDuration = 2000 // keep track of the longest coin tween
+    const spawnDelayStep = 50
+
+    for (let i = 0; i < count; i++) {
+      const spawnDelay = i * spawnDelayStep
+
+      this.time.delayedCall(spawnDelay, () => {
+        const coin = this.add.image(
+          Phaser.Math.Between(150, 250), // random X around center
+          -10, // start near the win image
+          'coin',
+        )
+
+        coin.setScale(Phaser.Math.FloatBetween(0.008, 0.01))
+        coin.setAlpha(0.9)
+        coin.setRotation(Phaser.Math.FloatBetween(0, Math.PI * 2))
+
+        const duration = fallDuration
+        const targetY = 180
+
+        // Animate fall + spin
+        this.tweens.add({
+          targets: coin,
+          y: targetY,
+          angle: Phaser.Math.Between(180, 720), // spin as it falls
+          x: coin.x + Phaser.Math.Between(-50, 50), // slight side movement
+          alpha: 0,
+          duration,
+          ease: 'Cubic.easeIn',
+          onComplete: () => coin.destroy(),
+        })
+      })
+    }
+    // Fade out sound smoothly once all coins are almost done
+    this.time.delayedCall(longestDuration - 500, () => {
+      this.tweens.add({
+        targets: coinsFalling,
+        volume: 0,
+        duration: 700, // fade duration
+        ease: 'Sine.easeOut',
+        onComplete: () => coinsFalling.stop(),
+      })
+    })
   }
 }

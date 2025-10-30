@@ -26,8 +26,12 @@ export default class Reel extends Phaser.GameObjects.Container {
   }
 
   public spin() {
-    if (this.spinning) return
+    // Always ensure clean state before starting
+    this.scene.events.off('update', this.updateReel, this)
+
     this.spinning = true
+    this.decelerating = false
+    this.spinSpeed = 200
 
     // Use scene update to move symbols smoothly
     this.scene.events.on('update', this.updateReel, this)
@@ -50,6 +54,9 @@ export default class Reel extends Phaser.GameObjects.Container {
         this.spinning = false
         this.decelerating = false
         this.spinSpeed = 0
+
+        // Stop listening to update event!
+        this.scene.events.off('update', this.updateReel, this)
 
         // Step 2: SNAP symbols smoothly
         this.symbols.forEach((symbol) => {

@@ -4,12 +4,12 @@ import Reel from '../../objects/Reel'
 export default class MainScene extends Phaser.Scene {
   private reels: Reel[] = []
   private spinButton!: Phaser.GameObjects.Image
-  private stopButton!: Phaser.GameObjects.Image
   private scoreText!: Phaser.GameObjects.Text
   private score: number = 0
   private spinSound?: Phaser.Sound.BaseSound
 
-  // settings
+  // game settings
+  private spinAutoStopDelay: number = 2500
   private numOfColumns = 3
 
   constructor() {
@@ -159,20 +159,18 @@ export default class MainScene extends Phaser.Scene {
 
     // Buttons
     this.spinButton = this.add
-      .image(width / 2 - 80, height - 80, 'spinBtn')
+      .image(width / 2, height - rwx / 2, 'spinBtn')
       .setInteractive()
-      .setScale(0.5)
-
-    this.stopButton = this.add
-      .image(width / 2 + 80, height - 80, 'stopBtn')
-      .setInteractive()
-      .setScale(0.5)
+      .setScale(0.6)
 
     this.spinButton.on('pointerdown', () => this.onButtonClick(() => this.startSpin()))
-    this.stopButton.on('pointerdown', () => this.onButtonClick(() => this.stopSpin()))
   }
 
   private startSpin() {
+    // Disable button visually and logically
+    this.spinButton.disableInteractive()
+    this.spinButton.setAlpha(0.5) // greyed-out look
+
     const spinSound = this.sound.add('spinning', { loop: true, volume: 0.3, rate: 2 })
     spinSound.play()
     this.spinSound = spinSound
@@ -180,7 +178,7 @@ export default class MainScene extends Phaser.Scene {
     this.reels.forEach((reel) => reel.spin())
 
     // auto-stop after 2.5 seconds
-    // this.time.delayedCall(2500, () => this.stopSpin())
+    this.time.delayedCall(this.spinAutoStopDelay, () => this.stopSpin())
   }
 
   private stopSpin() {
@@ -263,6 +261,10 @@ export default class MainScene extends Phaser.Scene {
     })
     this.sound.play(`witchLaugh${Phaser.Math.Between(1, 9)}`, { volume: 0.3 })
     this.sound.stopByKey('spinning')
+
+    // Re-enable button
+    this.spinButton.setInteractive()
+    this.spinButton.clearAlpha()
 
     const duration = Phaser.Math.Between(1000, 2000)
     this.increaseScore(duration)

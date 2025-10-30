@@ -6,7 +6,7 @@ export function addReels(scene: MainSceneType, layout: Layout) {
   // 1. Wrapper or Box
   const wrapperBg = scene.add.graphics()
   wrapperBg.fillRoundedRect(0, 0, width, height, 20)
-  wrapperBg.lineStyle(4, 0xffa500)
+  wrapperBg.lineStyle(10, 0xffa500)
   wrapperBg.strokeRoundedRect(0, 0, width, height, 20)
   const wrapper = scene.add.container(x, y)
   wrapper.add(wrapperBg)
@@ -17,12 +17,10 @@ export function addReels(scene: MainSceneType, layout: Layout) {
   const reelMask = maskShape.createGeometryMask() // use it for each reel
 
   // 3. Reel separation lines
-  const lineColor = 0xffa500
-  const lineWidth = 3
   const columnWidth = width / 3
 
   const separatorLines = scene.add.graphics()
-  separatorLines.lineStyle(lineWidth, lineColor, 1)
+  separatorLines.lineStyle(5, 0xffa500, 1)
 
   // Draw lines at 1/3 and 2/3 positions
   separatorLines.beginPath()
@@ -56,7 +54,6 @@ export function addReels(scene: MainSceneType, layout: Layout) {
     })()
     columnBg.fillStyle(0xffffff, 0.8)
     columnBg.fillRoundedRect(i * columnWidth, 0, columnWidth, height, columnBdRadius)
-    columnBg.lineStyle(4, 0xffa500)
 
     const columnWrap = scene.add.container(x, y)
     columnWrap.add(columnBg)

@@ -21,7 +21,7 @@ export default class MainScene extends Phaser.Scene implements MainSceneInterfac
   public symbolKeys = ['pumpkin', 'ghost', 'bat', 'candy', 'skull']
 
   // game settings
-  public spinAutoStopDelay = 2500
+  public spinAutoStopDelay = 2000
   public numOfColumns = 3
 
   constructor() {

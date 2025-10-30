@@ -1,7 +1,7 @@
 import type { MainSceneType } from '../../../types/main-scene'
 
 export function stopSpin(scene: MainSceneType) {
-  const stopDuration = 2300 // time per reel to stop (decelerate + snap)
+  const stopDuration = 800 // time per reel to stop (decelerate + snap)
   const reelDelay = 1000 // delay between reel stops
   const totalDelay = (scene.reels.length - 1) * reelDelay + stopDuration
 

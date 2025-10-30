@@ -48,7 +48,7 @@ export default class Reel extends Phaser.GameObjects.Container {
     this.scene.tweens.add({
       targets: this,
       dummy: 0, // fake property just for timing
-      duration: 2000,
+      duration: 500,
       onUpdate: (tween) => {
         this.spinSpeed = 200 * (1 - tween.progress)
       },

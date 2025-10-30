@@ -1,4 +1,4 @@
-# Trnoius test app
+# Tronius test app
 
 ## Task breakdown
 

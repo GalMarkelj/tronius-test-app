@@ -1,5 +1,7 @@
 import Phaser from 'phaser'
 
+import type { MainSceneType } from '../types/main-scene'
+
 export default class Reel extends Phaser.GameObjects.Container {
   private symbols: Phaser.GameObjects.Image[] = []
   private symbolKeys: string[]
@@ -8,7 +10,7 @@ export default class Reel extends Phaser.GameObjects.Container {
   private spinSpeed: number = 200
   private decelerating: boolean = false
 
-  constructor(scene: Phaser.Scene, x: number, y: number, symbolKeys: string[]) {
+  constructor(scene: MainSceneType, x: number, y: number, symbolKeys: string[]) {
     super(scene, x, y)
     this.symbolKeys = symbolKeys
     this.createInitialSymbols()
@@ -87,15 +89,3 @@ export default class Reel extends Phaser.GameObjects.Container {
     }
   }
 }
-
-// const symbolColors = [0x0000f2, 0xffffff, 0x00ff00, 0xff0000, 0x0000ff]
-// const color = Phaser.Utils.Array.GetRandom(symbolColors)
-// const symbol2 = this.scene.add.graphics()
-// symbol2.fillStyle(color, 0.3)
-// symbol2.fillRect(0, i * 153.6, 238.93, 153.6)
-// // Optional: add a small border to see the edges clearly
-// symbol2.lineStyle(4, 0x000000, 1)
-// symbol2.strokeRect(0, i * 153.6, 238.93, 153.6)
-//
-// this.add(symbol2)
-// this.symbols.push(symbol2)

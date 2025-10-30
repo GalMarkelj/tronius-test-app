@@ -1,16 +1,28 @@
 import Phaser from 'phaser'
-import Reel from '../../objects/Reel'
 
-export default class MainScene extends Phaser.Scene {
-  private reels: Reel[] = []
-  private spinButton!: Phaser.GameObjects.Image
-  private scoreText!: Phaser.GameObjects.Text
-  private score: number = 0
-  private spinSound?: Phaser.Sound.BaseSound
+import Reel from '../../objects/Reel'
+import { addScore } from './helpers/addScore'
+import { addReels } from './helpers/addReels'
+import { addButtons } from './helpers/addButtons'
+
+import type { MainSceneInterface } from '../../interfaces/main-scene'
+import { startSpin } from './helpers/startSpin'
+import { stopSpin } from './helpers/stopSpin'
+import { increaseScore } from './helpers/increaseScore'
+import { onSpinStop } from './helpers/onSpinStop'
+import { spawnCoins } from './helpers/spawnCoins'
+
+export default class MainScene extends Phaser.Scene implements MainSceneInterface {
+  public reels: Reel[] = []
+  public spinButton: Phaser.GameObjects.Image
+  public scoreText: Phaser.GameObjects.Text
+  public spinSound: Phaser.Sound.BaseSound
+  public score = 0
+  public symbolKeys = ['pumpkin', 'ghost', 'bat', 'candy', 'skull']
 
   // game settings
-  private spinAutoStopDelay: number = 2500
-  private numOfColumns = 3
+  public spinAutoStopDelay = 2500
+  public numOfColumns = 3
 
   constructor() {
     super('MainScene')
@@ -57,271 +69,61 @@ export default class MainScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale
 
-    // set background music
+    const layout = (() => {
+      const rww = width * 0.7 // reel wrapper width
+      const rwh = height * 0.6 // reel wrapper height
+
+      const rwx = (width - rww) / 2 // reel wrapper X
+      const rwy = (height - rwh) / 2 // reel wrapper Y
+
+      return {
+        scene: {
+          width,
+          height,
+        },
+        reelWrapper: {
+          width: rww,
+          height: rwh,
+          x: rwx,
+          y: rwy,
+        },
+      }
+    })()
+
+    // Background
+    this.add
+      .image(layout.scene.width / 2, layout.scene.height / 2, 'bg')
+      .setDisplaySize(layout.scene.width, layout.scene.height)
+
+    // Set ambient music
     const music = this.sound.add('bgMusic', {
       loop: true,
       volume: 0.1, // between 0 and 1
     })
     music.play()
 
-    // Background
-    this.add.image(width / 2, height / 2, 'bg').setDisplaySize(width, height)
-
-    // Symbols available
-    const symbolKeys = ['pumpkin', 'ghost', 'bat', 'candy', 'skull']
-    // const symbolColors = [0x0000f2, 0xffffff, 0x00ff00, 0xff0000, 0x0000ff]
-
-    const rww = width * 0.7 // reel wrapper width
-    const rwh = height * 0.6 // reel wrapper height
-
-    const rwx = (width - rww) / 2 // reel wrapper X
-    const rwy = (height - rwh) / 2 // reel wrapper Y
-
-    const maskShape = this.add.graphics()
-    maskShape.fillRect(rwx, rwy, rww, rwh) // match the wrapper size and position
-
-    // Create the geometry mask
-    const reelMask = maskShape.createGeometryMask()
-
-    const wrapperBg = this.add.graphics()
-    wrapperBg.fillRoundedRect(0, 0, rww, rwh, 20)
-    wrapperBg.lineStyle(4, 0xffa500)
-    wrapperBg.strokeRoundedRect(0, 0, rww, rwh, 20)
-
-    // Then add it as the first element in your container
-    const wrapper = this.add.container(rwx, rwy)
-    wrapper.add(wrapperBg)
-
-    /* -- Start of separation lines -- */
-    const lineColor = 0xffa500
-    const lineWidth = 3
-    const columnWidth = rww / 3
-
-    const separatorLines = this.add.graphics()
-    separatorLines.lineStyle(lineWidth, lineColor, 1)
-
-    // Draw lines at 1/3 and 2/3 positions
-    separatorLines.beginPath()
-    separatorLines.moveTo(columnWidth, 0)
-    separatorLines.lineTo(columnWidth, rwh)
-    separatorLines.moveTo(2 * columnWidth, 0)
-    separatorLines.lineTo(2 * columnWidth, rwh)
-    separatorLines.strokePath()
-    /* -- End of separation lines -- */
-
-    // Add them to the same wrapper
-    wrapper.add(separatorLines)
-
-    // Create 3 reels
-    for (let i = 0; i < this.numOfColumns; i++) {
-      const columnBg = this.add.graphics()
-      const columnBdRadius = (() => {
-        const corners = {
-          tl: 0,
-          tr: 0,
-          bl: 0,
-          br: 0,
-        }
-        if (i === 0) {
-          corners.tl = 20
-          corners.bl = 20
-        }
-        if (i === this.numOfColumns - 1) {
-          corners.tr = 20
-          corners.br = 20
-        }
-        return corners
-      })()
-      columnBg.fillStyle(0xffffff, 0.8)
-      columnBg.fillRoundedRect(i * columnWidth, 0, columnWidth, rwh, columnBdRadius)
-      columnBg.lineStyle(4, 0xffa500)
-
-      const columnWrap = this.add.container(rwx, rwy)
-      columnWrap.add(columnBg)
-
-      const reel = new Reel(this, rwx + i * columnWidth, rwy, symbolKeys)
-      reel.setMask(reelMask)
-      this.reels.push(reel)
-    }
-
-    // Score display
-    // score coordinates
-    const sc = {
-      imageX: width / 2 - rww / 2 + 40, // (game width / 2) - (container width / 2) + container border radius
-      imageY: rwh / 2 - 100, // (game width / 2) - (container width / 2) - gap
-    }
-    this.add.image(sc.imageX, sc.imageY - 20, 'gold').setScale(0.2)
-    this.scoreText = this.add.text(sc.imageX + 50, sc.imageY - 35, `${this.score}`, {
-      fontSize: '50px',
-      color: '#ffd700',
-      fontFamily: 'Henny Penny',
-    })
-
-    // Buttons
-    this.spinButton = this.add
-      .image(width / 2, height - rwx / 2, 'spinBtn')
-      .setInteractive()
-      .setScale(0.6)
-
-    this.spinButton.on('pointerdown', () => this.onButtonClick(() => this.startSpin()))
+    addReels(this, layout)
+    addScore(this, layout)
+    addButtons(this, layout)
   }
 
-  private startSpin() {
-    // Disable button visually and logically
-    this.spinButton.disableInteractive()
-    this.spinButton.setAlpha(0.5) // greyed-out look
-
-    const spinSound = this.sound.add('spinning', { loop: true, volume: 0.3, rate: 2 })
-    spinSound.play()
-    this.spinSound = spinSound
-
-    this.reels.forEach((reel) => reel.spin())
-
-    // auto-stop after 2.5 seconds
-    this.time.delayedCall(this.spinAutoStopDelay, () => this.stopSpin())
+  public startSpin() {
+    startSpin(this)
   }
 
-  private stopSpin() {
-    const stopDuration = 2300 // time per reel to stop (decelerate + snap)
-    const reelDelay = 1000 // delay between reel stops
-    const totalDelay = (this.reels.length - 1) * reelDelay + stopDuration
-
-    this.reels.forEach((reel, index) => {
-      this.time.delayedCall(index * 1000, () => {
-        reel.stop()
-
-        // When the LAST reel begins stopping, start fading out the sound
-        if (index === this.reels.length - 1 && this.spinSound) {
-          this.tweens.add({
-            targets: this.spinSound,
-            volume: 0,
-            rate: 0.8,
-            duration: stopDuration,
-            ease: 'Cubic.easeOut',
-            onComplete: () => {
-              this.sound.stopByKey('spinning')
-            },
-          })
-        }
-      })
-    })
-
-    this.time.delayedCall(totalDelay, () => this.onSpinStop())
+  public stopSpin() {
+    stopSpin(this)
   }
 
-  private increaseScore(duration: number) {
-    const oldScore = this.score
-    const added = Phaser.Math.Between(50, 200)
-    const newScore = oldScore + added
-
-    // Tween the value smoothly
-    const scoreObj = { value: oldScore }
-
-    this.tweens.add({
-      targets: scoreObj,
-      value: newScore,
-      duration,
-      ease: 'Cubic.easeOut',
-      onUpdate: () => {
-        // Update the text with the animated number (integer)
-        this.scoreText.setText(Math.floor(scoreObj.value).toString())
-      },
-      onComplete: () => {
-        this.score = newScore
-      },
-    })
+  public increaseScore(duration: number) {
+    increaseScore(this, duration)
   }
 
-  private onSpinStop() {
-    // image width = 350 height = 470
-    const witch = this.add
-      .image(this.scale.width / 2, this.scale.height / 2, 'witch')
-      .setScale(0.5)
-      .setAlpha(0)
-
-    this.tweens.add({
-      targets: witch,
-      alpha: 1,
-      scale: 1.5,
-      duration: 300,
-      ease: 'Back.easeOut',
-      yoyo: false,
-      onComplete: () => {
-        // After 1 second, fade out and destroy
-        this.tweens.add({
-          targets: witch,
-          alpha: 0,
-          duration: 700,
-          delay: 1000,
-          onComplete: () => {
-            witch.destroy()
-          },
-        })
-      },
-    })
-    this.sound.play(`witchLaugh${Phaser.Math.Between(1, 9)}`, { volume: 0.3 })
-    this.sound.stopByKey('spinning')
-
-    // Re-enable button
-    this.spinButton.setInteractive()
-    this.spinButton.clearAlpha()
-
-    const duration = Phaser.Math.Between(1000, 2000)
-    this.increaseScore(duration)
-    this.spawnCoins(30, duration)
+  public onSpinStop() {
+    onSpinStop(this)
   }
 
-  private onButtonClick(callback: () => void) {
-    this.sound.play('buttonClick', { volume: 0.5 })
-    callback()
-  }
-
-  private spawnCoins(count: number = 15, fallDuration: number) {
-    const coinsFalling = this.sound.add('coinsFalling', { volume: 0.5 })
-    coinsFalling.play()
-
-    const longestDuration = 2000 // keep track of the longest coin tween
-    const spawnDelayStep = 50
-
-    for (let i = 0; i < count; i++) {
-      const spawnDelay = i * spawnDelayStep
-
-      this.time.delayedCall(spawnDelay, () => {
-        const coin = this.add.image(
-          Phaser.Math.Between(150, 250), // random X around center
-          -10, // start near the win image
-          'coin',
-        )
-
-        coin.setScale(Phaser.Math.FloatBetween(0.008, 0.01))
-        coin.setAlpha(0.9)
-        coin.setRotation(Phaser.Math.FloatBetween(0, Math.PI * 2))
-
-        const duration = fallDuration
-        const targetY = 180
-
-        // Animate fall + spin
-        this.tweens.add({
-          targets: coin,
-          y: targetY,
-          angle: Phaser.Math.Between(180, 720), // spin as it falls
-          x: coin.x + Phaser.Math.Between(-50, 50), // slight side movement
-          alpha: 0,
-          duration,
-          ease: 'Cubic.easeIn',
-          onComplete: () => coin.destroy(),
-        })
-      })
-    }
-    // Fade out sound smoothly once all coins are almost done
-    this.time.delayedCall(longestDuration - 500, () => {
-      this.tweens.add({
-        targets: coinsFalling,
-        volume: 0,
-        duration: 700, // fade duration
-        ease: 'Sine.easeOut',
-        onComplete: () => coinsFalling.stop(),
-      })
-    })
+  public spawnCoins(count: number, fallDuration: number) {
+    spawnCoins(this, count, fallDuration)
   }
 }
